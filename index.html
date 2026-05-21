@@ -3,564 +3,459 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>코인스캐너</title>
-    
-    <!-- 모바일 전체화면 앱(PWA) 지원을 위한 메타 태그 -->
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#030712">
-
+    <title>대한민국 희귀 동전 스마트 스캐너</title>
     <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- React & ReactDOM CDN -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    
-    <!-- Babel (브라우저 내에서 JSX 컴파일) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- React 및 Babel CDN (프로토타입용) -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
+    <!-- Lucide 아이콘 라이브러리 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @keyframes scan {
-            0% { transform: translateY(-100%); }
-            50% { transform: translateY(100%); }
-            100% { transform: translateY(-100%); }
-        }
-        .animate-scan {
-            animation: scan 2s ease-in-out infinite;
+        body { -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .scanner-laser { animation: laser-scan 2s infinite ease-in-out; }
+        @keyframes laser-scan {
+            0%, 100% { top: 10%; opacity: 0.3; }
+            50% { top: 90%; opacity: 0.8; }
         }
     </style>
 </head>
-<body class="bg-gray-950 text-gray-100 font-sans selection:bg-amber-500/30">
+<body class="bg-slate-900 text-slate-100 antialiased">
+
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
-        const COIN_DATABASE = [
-            { id: 1, type: '1원', year: '1966', desc: '최초 발행', condition: '미사용', price: '100,000원+', value: 100000 },
-            { id: 2, type: '5원', year: '1966', desc: '최초 발행', condition: '미사용', price: '400,000원 수준', value: 400000 },
-            { id: 3, type: '10원', year: '1966~1970', desc: '소재·색상 변화', condition: '미사용', price: '100,000원+', value: 100000 },
-            { id: 4, type: '10원', year: '1981', desc: '발행량 적음', condition: '사용', price: '100,000원', value: 100000 },
-            { id: 5, type: '10원', year: '1981', desc: '발행량 적음', condition: '미사용', price: '135,000 ~ 155,000원', value: 145000 },
-            { id: 6, type: '50원', year: '1972', desc: '최초 발행', condition: '미사용', price: '80,000 ~ 365,000원 (등급에 따라)', value: 200000 },
-            { id: 7, type: '100원', year: '1970', desc: '최초 발행', condition: '미사용', price: '50,000원 내외', value: 50000 },
-            { id: 8, type: '100원', year: '1971~1998', desc: '연도별 변동', condition: '상태/등급에 따라', price: '20,000 ~ 30,000원대', value: 25000 },
-            { id: 9, type: '100원', year: '1998', desc: '발행량 적음', condition: '미사용', price: '120,000 ~ 425,000원', value: 270000 },
-            { id: 10, type: '500원', year: '1987', desc: '발행량 적음', condition: '미사용', price: '100,000원+', value: 100000 },
-            { id: 11, type: '500원', year: '1998', desc: '민트세트 8,000개 한정', condition: '미사용', price: '3,000,000원 이상', value: 3000000 },
+        // 동전 희귀 시세 데이터베이스 (제공 데이터 기준)
+        const COIN_DB = {
+            "1원": {
+                "1966": { label: "최초 발행", prices: { "미사용": 100000, "사용감 있음": 5000 } }
+            },
+            "5원": {
+                "1966": { label: "최초 발행", prices: { "미사용": 400000, "사용감 있음": 15000 } }
+            },
+            "10원": {
+                "1966": { label: "최초 발행 (적동화)", prices: { "미사용": 150000, "사용감 있음": 3000 } },
+                "1970": { label: "소재 황동 변경 황색화", prices: { "미사용": 100000, "사용감 있음": 2000 } },
+                "1981": { label: "극소 발행량 해", prices: { "미사용": 145000, "사용감 있음": 100000 } }
+            },
+            "50원": {
+                "1972": { label: "최초 발행 (벼 이삭)", prices: { "미사용": 365000, "사용감 있음": 10000 } }
+            },
+            "100원": {
+                "1970": { label: "최초 발행 (이순신 장군)", prices: { "미사용": 60000, "사용감 있음": 2000 } },
+                "1998": { label: "외환위기(IMF) 극소 발행", prices: { "미사용": 350000, "사용감 있음": 80000 } }
+            },
+            "500원": {
+                "1987": { label: "정기 발행량 부족 해", prices: { "미사용": 120000, "사용감 있음": 30000 } },
+                "1998": { label: "IMF 증정용 민트세트 한정 수량", prices: { "미사용": 3000000, "사용감 있음": 800000 } }
+            }
+        };
+
+        // 전체 시세표 출력을 위한 플랫 가공 데이터
+        const ALL_COINS = [
+            { id: 1, name: "1원", year: "1966", desc: "최초 발행", price: "미사용 100,000원+" },
+            { id: 2, name: "5원", year: "1966", desc: "최초 발행", price: "미사용 40만 원 수준" },
+            { id: 3, name: "10원", year: "1966~1970", desc: "소재·색상 변화", price: "미사용 100,000원+" },
+            { id: 4, name: "10원", year: "1981", desc: "발행량 적음", price: "사용 10만 / 미사용 13.5~15.5만" },
+            { id: 5, name: "50원", year: "1972", desc: "최초 발행", price: "미사용 8만 ~ 최대 36.5만" },
+            { id: 6, name: "100원", year: "1970", desc: "최초 발행", price: "미사용 50,000원 내외" },
+            { id: 7, name: "100원", year: "1998", desc: "IMF 극소 발행", price: "미사용 12만 ~ 42.5만" },
+            { id: 8, name: "500원", year: "1987", desc: "발행량 적음", price: "미사용 100,000원+" },
+            { id: 9, name: "500원", year: "1998", desc: "8,000개 한정 민트세트", price: "미사용 3,000,000원 이상" }
         ];
 
-        const CoinsIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <circle cx="8" cy="8" r="6" />
-                <path d="M18.09 10.37A6 6 0 1 1 10.34 18" />
-                <path d="M7 6h2" />
-                <path d="M15 12h2" />
-            </svg>
-        );
+        function App() {
+            const [activeTab, setActiveTab] = useState("scan");
+            const [image, setImage] = useState(null);
+            const [isOptimizing, setIsOptimizing] = useState(false);
+            const [step, setStep] = useState(1); // 1: 촬영전, 2: 판독/입력보정, 3: 최종결과
 
-        const CameraIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-                <circle cx="12" cy="13" r="3" />
-            </svg>
-        );
+            // 사용자가 수동 선택/보정할 상태값
+            const [selectedDenom, setSelectedDenom] = useState("100원");
+            const [selectedYear, setSelectedYear] = useState("");
+            const [selectedCondition, setSelectedCondition] = useState("미사용");
 
-        const ListIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <line x1="8" y1="6" x2="21" y2="6" />
-                <line x1="8" y1="12" x2="21" y2="12" />
-                <line x1="8" y1="18" x2="21" y2="18" />
-                <line x1="3" y1="6" x2="3.01" y2="6" />
-                <line x1="3" y1="12" x2="3.01" y2="12" />
-                <line x1="3" y1="18" x2="3.01" y2="18" />
-            </svg>
-        );
+            // 이미지 업로드 및 리사이징 처리 (용량 부족 해결 알고리즘)
+            const handleImageChange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
 
-        const InfoIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="16" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-        );
+                setIsOptimizing(true);
+                const reader = new FileReader();
+                
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Canvas를 이용해 최대 800px 크기로 압축 리사이징
+                        const canvas = document.createElement("canvas");
+                        const MAX_WIDTH = 800;
+                        const MAX_HEIGHT = 800;
+                        let width = img.width;
+                        let height = img.height;
 
-        const UploadIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-        );
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                        }
 
-        const CheckCircleIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-        );
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext("2d");
+                        ctx.drawImage(img, 0, 0, width, height);
 
-        const AlertTriangleIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-        );
+                        // 용량 최소화를 위해 jpeg 포맷, 0.7 퀄리티로 압축
+                        const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+                        setImage(dataUrl);
+                        setIsOptimizing(false);
+                        setStep(2); // 입력 보정 단계로 진입
+                    };
+                    img.src = event.target.getSelection ? event.target.result : event.target.target.result;
+                    if(!img.src) img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            };
 
-        const RefreshCwIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <polyline points="23 4 23 10 17 10" />
-                <polyline points="1 20 1 14 7 14" />
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-        );
+            // 선택된 조건 기반 가치 계산기
+            const calculateValue = () => {
+                const denomData = COIN_DB[selectedDenom];
+                if (!denomData) return { type: "일반", price: "액면가 (기본 가치)" };
 
-        const SearchIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-        );
+                // 연도 확인 (예: 1966~1970 뭉뚱그려진 조건 체크 포함)
+                let yearData = denomData[selectedYear];
+                
+                // 10원 1966~1970 예외처리
+                if (!yearData && selectedDenom === "10원" && ["1966","1967","1968","1969","1970"].includes(selectedYear)) {
+                    yearData = denomData[selectedYear === "1966" ? "1966" : "1970"];
+                }
 
-        function CoinAppraiser() {
-            const [activeTab, setActiveTab] = useState('scan');
+                if (!yearData) {
+                    return { type: "일반", price: `${selectedDenom} (일반 유통 동전 가치)` };
+                }
+
+                const price = yearData.prices[selectedCondition];
+                return {
+                    type: "희귀",
+                    label: yearData.label,
+                    price: price ? `${price.toLocaleString()} 원` : "시세 별도 문의"
+                };
+            };
+
+            const result = calculateValue();
 
             return (
-                <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pb-24">
-                    {/* Header */}
-                    <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
-                        <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-center relative">
-                            <div className="flex items-center gap-2">
-                                <CoinsIcon className="text-amber-500 w-6 h-6" />
-                                <h1 className="text-xl font-bold bg-gradient-to-r from-amber-400 to-yellow-200 bg-clip-text text-transparent">
-                                    코인스캐너
-                                </h1>
-                            </div>
+                <div class="max-w-md mx-auto bg-slate-900 min-h-screen flex flex-col relative pb-24 shadow-2xl border-x border-slate-800">
+                    {/* 상단 헤더 */}
+                    <header class="bg-slate-950 p-4 sticky top-0 z-30 border-b border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-slate-950 text-sm">₩</div>
+                            <h1 class="font-bold text-lg tracking-tight">코인 가치 스캐너</h1>
                         </div>
+                        <span class="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400">Ver 2.1 (스마트 검증식)</span>
                     </header>
 
-                    {/* Main Content Area */}
-                    <main className="max-w-md mx-auto">
-                        {activeTab === 'scan' && <ScannerTab />}
-                        {activeTab === 'table' && <PriceTableTab />}
-                        {activeTab === 'guide' && <GuideTab />}
+                    {/* 메인 콘텐츠 영역 */}
+                    <main class="flex-1 p-4">
+                        {isOptimizing && (
+                            <div class="fixed inset-0 bg-slate-950/80 z-50 flex flex-col items-center justify-center p-6">
+                                <div class="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <p class="text-amber-400 font-semibold text-center">고화질 사진 용량 최적화 중...</p>
+                                <p class="text-xs text-slate-500 mt-1">스마트폰 메모리를 보호하고 있습니다.</p>
+                            </div>
+                        )}
+
+                        {activeTab === "scan" && (
+                            <div>
+                                {/* 1단계: 사진 촬영 전 메인 화면 */}
+                                {step === 1 && (
+                                    <div class="flex flex-col items-center justify-center py-10 text-center">
+                                        <div class="w-40 h-40 rounded-full bg-slate-800/50 border border-slate-700 flex items-center justify-center mb-6 shadow-inner relative overflow-hidden">
+                                            <i data-lucide="coins" class="w-16 h-16 text-amber-500/70"></i>
+                                            <div class="absolute inset-x-0 h-0.5 bg-amber-400/50 scanner-laser"></div>
+                                        </div>
+                                        <h2 class="text-xl font-bold mb-2">희귀 동전 식별을 시작합니다</h2>
+                                        <p class="text-sm text-slate-400 max-w-xs mb-8">
+                                            집에 잠들어 있는 동전을 촬영해 보세요. 발행 연도와 보존 상태 조합으로 가치를 판독합니다.
+                                        </p>
+
+                                        {/* 대형 터치 버튼 2개 제공 */}
+                                        <div class="w-full space-y-3 px-4">
+                                            <label class="flex items-center justify-center gap-3 w-full bg-amber-500 hover:bg-amber-600 active:scale-98 text-slate-950 font-bold py-4 px-6 rounded-xl cursor-pointer transition shadow-lg shadow-amber-500/10">
+                                                <i data-lucide="camera" class="w-6 h-6"></i>
+                                                <span>카메라로 직접 촬영</span>
+                                                <input type="file" accept="image/*" capture="environment" onChange={handleImageChange} class="hidden" />
+                                            </label>
+
+                                            <label class="flex items-center justify-center gap-3 w-full bg-slate-800 hover:bg-slate-700 active:scale-98 text-slate-100 font-medium py-3.5 px-6 rounded-xl cursor-pointer transition border border-slate-700">
+                                                <i data-lucide="image" class="w-5 h-5 text-slate-400"></i>
+                                                <span>앨범에서 사진 선택</span>
+                                                <input type="file" accept="image/*" onChange={handleImageChange} class="hidden" />
+                                            </label>
+                                        </div>
+
+                                        <div class="mt-8 bg-slate-950 p-4 rounded-xl text-left border border-slate-800 w-full">
+                                            <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                <i data-lucide="info" class="w-3.5 h-3.5"></i> 촬영 가이드
+                                            </h4>
+                                            <p class="text-xs text-slate-400 leading-relaxed">
+                                                동전이 화면 중앙에 꽉 차도록 수평을 맞춰 정면에서 찍어주세요. 숫자가 선명할수록 식별이 정확해집니다.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 2단계: 스마트 판독 가이드 및 보정 화면 (돋보기 타겟) */}
+                                {step === 2 && (
+                                    <div class="space-y-6">
+                                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                            <h3 class="text-sm font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
+                                                <i data-lucide="eye" class="w-4 h-4 text-amber-400"></i> 육안 판독 및 스마트 보정
+                                            </h3>
+                                            
+                                            {/* 동전 과녁 돋보기 오버레이 이미지 영역 */}
+                                            <div class="relative rounded-lg overflow-hidden bg-black flex items-center justify-center aspect-square border border-slate-700">
+                                                <img src={image} alt="스캔된 동전" class="w-full h-full object-contain" />
+                                                {/* 과녁선 가이드라인 */}
+                                                <div class="absolute inset-0 border-4 border-amber-500/30 m-8 rounded-full flex items-center justify-center pointer-events-none">
+                                                    <div class="w-12 h-12 border border-dashed border-amber-400 rounded-full animate-pulse flex items-center justify-center">
+                                                        <div class="w-2 h-2 bg-amber-400 rounded-full"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="absolute top-2 left-2 bg-slate-900/80 px-2 py-0.5 rounded text-[10px] border border-slate-700 text-amber-400">
+                                                    확대 가이드 조준선 작동 중
+                                                </div>
+                                            </div>
+                                            <p class="text-[11px] text-slate-400 mt-2 text-center">
+                                                💡 사진 속 동전의 <b>금액</b>과 <b>발행년도</b>를 아래 터치패드에서 매칭해 주세요.
+                                            </p>
+                                        </div>
+
+                                        {/* 입력 폼: 액면가 선택 (대형 가시성 버튼) */}
+                                        <div>
+                                            <label class="text-xs font-semibold text-slate-400 block mb-2">1. 동전 종류 선택</label>
+                                            <div class="grid grid-cols-3 gap-2">
+                                                {["10원", "50원", "100원", "500원", "1원", "5원"].map(denom => (
+                                                    <button key={denom} onClick={() => { setSelectedDenom(denom); setSelectedYear(""); }} 
+                                                        class={`py-2.5 px-3 rounded-lg border font-medium text-sm transition ${selectedDenom === denom ? 'bg-amber-500 text-slate-950 border-amber-500 font-bold' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-750'}`}>
+                                                        {denom}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* 입력 폼: 발행연도 선택 입력 */}
+                                        <div>
+                                            <label class="text-xs font-semibold text-slate-400 block mb-1">2. 동전 발행 연도 입력</label>
+                                            <div class="flex gap-2">
+                                                <input type="number" pattern="[0-9]*" inputmode="numeric" placeholder="예: 1998" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}
+                                                    class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white font-bold tracking-wider focus:outline-none focus:border-amber-500 placeholder-slate-500" />
+                                                
+                                                {/* 주요 희귀년도 자동 추천 칩 */}
+                                                <div class="flex items-center gap-1 overflow-x-auto text-xs py-1">
+                                                    {selectedDenom === "100원" && ["1970", "1998"].map(y => (
+                                                        <button key={y} onClick={() => setSelectedYear(y)} class="bg-slate-950 border border-slate-700 text-amber-400 px-2.5 py-2 rounded-lg font-bold hover:bg-slate-800">{y}년</button>
+                                                    ))}
+                                                    {selectedDenom === "500원" && ["1987", "1998"].map(y => (
+                                                        <button key={y} onClick={() => setSelectedYear(y)} class="bg-slate-950 border border-slate-700 text-amber-400 px-2.5 py-2 rounded-lg font-bold hover:bg-slate-800">{y}년</button>
+                                                    ))}
+                                                    {selectedDenom === "10원" && ["1966", "1970", "1981"].map(y => (
+                                                        <button key={y} onClick={() => setSelectedYear(y)} class="bg-slate-950 border border-slate-700 text-amber-400 px-2.5 py-2 rounded-lg font-bold hover:bg-slate-800">{y}년</button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* 입력 폼: 보존 상태 선택 */}
+                                        <div>
+                                            <label class="text-xs font-semibold text-slate-400 block mb-2">3. 동전 보존 상태 선택</label>
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <button onClick={() => setSelectedCondition("미사용")} 
+                                                    class={`p-3 rounded-xl border text-left transition ${selectedCondition === "미사용" ? 'bg-amber-500/10 border-amber-500' : 'bg-slate-800 border-slate-700'}`}>
+                                                    <div class={`text-sm font-bold ${selectedCondition === "미사용" ? 'text-amber-400' : 'text-white'}`}>✨ 미사용 (광택 살아있음)</div>
+                                                    <p class="text-[11px] text-slate-400 mt-1">한 번도 시중에 유통되지 않고 흠집이 거의 없는 최상급 상태</p>
+                                                </button>
+                                                <button onClick={() => setSelectedCondition("사용감 있음")} 
+                                                    class={`p-3 rounded-xl border text-left transition ${selectedCondition === "사용감 있음" ? 'bg-amber-500/10 border-amber-500' : 'bg-slate-800 border-slate-700'}`}>
+                                                    <div class={`text-sm font-bold ${selectedCondition === "사용감 있음" ? 'text-amber-400' : 'text-white'}`}>🪙 사용 (유통품·마모 있음)</div>
+                                                    <p class="text-[11px] text-slate-400 mt-1">지갑 속이나 거래에 일반 사용되어 긁힘이나 마모가 보이는 상태</p>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* 가치 산출 제출 버튼 */}
+                                        <button onClick={() => { if(!selectedYear){alert('발행 연도를 입력해 주세요.'); return;} setStep(3); }}
+                                            class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-4 rounded-xl text-center transition tracking-wide shadow-lg">
+                                            정밀 시세 감정 결과 보기
+                                        </button>
+                                        
+                                        <button onClick={() => { setStep(1); setImage(null); }} class="w-full text-slate-400 text-xs py-1 text-center hover:underline">
+                                            처음으로 돌아가기
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* 3단계: 최종 감정 결과 페이지 */}
+                                {step === 3 && (
+                                    <div class="space-y-6">
+                                        <div class="bg-slate-950 p-6 rounded-2xl border-2 border-amber-500/30 text-center relative overflow-hidden">
+                                            <div class="absolute top-0 right-0 bg-amber-500 text-slate-950 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-bl-lg">
+                                                {result.type} 등급주화
+                                            </div>
+
+                                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">예상 거래 가치 감정서</p>
+                                            <h3 class="text-2xl font-black text-white mb-4">{selectedYear}년 {selectedDenom}</h3>
+                                            
+                                            <div class="inline-block bg-slate-900 px-4 py-2 rounded-full text-xs border border-slate-800 text-slate-300 mb-6">
+                                                상태: <span class="text-amber-400 font-bold">{selectedCondition}</span>
+                                            </div>
+
+                                            {/* 대형 가격 스코어보드 */}
+                                            <div class="bg-slate-900 rounded-xl p-5 border border-slate-800 mb-4">
+                                                <span class="text-xs text-slate-500 block mb-1">수집 시장 예상 시세</span>
+                                                <span class="text-3xl font-black text-amber-400 tracking-tight">{result.price}</span>
+                                            </div>
+
+                                            {result.label && (
+                                                <p class="text-xs text-amber-300 bg-amber-500/5 py-2 px-3 rounded-lg border border-amber-500/10 inline-block">
+                                                    📢 특징: {result.label}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2.5 text-xs text-slate-400">
+                                            <h4 class="font-bold text-slate-200 text-sm mb-1 flex items-center gap-1">
+                                                <i data-lucide="shield-alert" class="w-4 h-4 text-amber-500"></i> 오차 최소화를 위한 안내
+                                            </h4>
+                                            <p>• 본 가격표는 한국 화폐 수집 시장의 평균 거래가를 기준으로 산출되었습니다.</p>
+                                            <p>• 주화의 스크래치 깊이, 미세 변색, 공식 NGC/PCGS 등급 인증 여부에 따라 수만 원에서 수백만 원까지 추가 가치 차이가 날 수 있습니다.</p>
+                                            <p class="text-red-400 font-semibold">• 주의: 가치를 높이기 위해 화학약품으로 동전을 세척하거나 광을 내면 표면 손상으로 수집 가치가 0원으로 급락합니다.</p>
+                                        </div>
+
+                                        <button onClick={() => { setStep(1); setImage(null); setSelectedYear(""); }}
+                                            class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3.5 rounded-xl text-center transition">
+                                            다른 동전 추가 스캔하기
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* 탭 2: 기준 시세표 일람 */}
+                        {activeTab === "table" && (
+                            <div class="space-y-4">
+                                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                                    <h2 class="font-bold text-base mb-1 text-amber-400 flex items-center gap-1.5">
+                                        <i data-lucide="table-properties" class="w-4 h-4"></i> 대한민국 최고가 희귀 동전 족보
+                                    </h2>
+                                    <p class="text-xs text-slate-400 leading-relaxed">
+                                        발행 물량이 적어 수집가들 사이에서 가장 고가에 양도·매매되는 핵심 연도 요약 일람표입니다.
+                                    </p>
+                                </div>
+
+                                <div class="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
+                                    <table class="w-full text-left text-xs">
+                                        <thead class="bg-slate-900 text-slate-400 font-bold uppercase border-b border-slate-800">
+                                            <tr>
+                                                <th class="p-3">동전</th>
+                                                <th class="p-3">희귀연도</th>
+                                                <th class="p-3">주요특징</th>
+                                                <th class="p-3 text-right">예상 최고가</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-850">
+                                            {ALL_COINS.map(coin => (
+                                                <tr key={coin.id} class="hover:bg-slate-900/50">
+                                                    <td class="p-3 font-bold text-white">{coin.name}</td>
+                                                    <td class="p-3 text-amber-400 font-bold">{coin.year}</td>
+                                                    <td class="p-3 text-slate-400">{coin.desc}</td>
+                                                    <td class="p-3 text-right text-slate-200 font-medium">{coin.price.split(' ')[1] || coin.price}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 탭 3: 주화 보존 상식 가이드 */}
+                        {activeTab === "guide" && (
+                            <div class="space-y-4">
+                                <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-4">
+                                    <h3 class="font-bold text-lg text-amber-400 flex items-center gap-2">
+                                        <i data-lucide="award" class="w-5 h-5"></i> 가치를 결정하는 3대 핵심 요소
+                                    </h3>
+                                    
+                                    <div class="space-y-3">
+                                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                                            <h4 class="font-bold text-white text-sm mb-1">1. 희소성 (발행 연도 및 생산량)</h4>
+                                            <p class="text-xs text-slate-400 leading-relaxed">
+                                                해당 연도에 한국은행에서 발행한 총수량이 적을수록 가치가 올라갑니다. 특히 1998년 500원은 외환위기 당시 시중 유통용이 아닌 기증 기념용 민트세트로 단 8,000개만 한정 생산되어 부르는 게 값입니다.
+                                            </p>
+                                        </div>
+
+                                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                                            <h4 class="font-bold text-white text-sm mb-1">2. 보존 상태 (미사용 주화의 가치)</h4>
+                                            <p class="text-xs text-slate-400 leading-relaxed">
+                                                아무리 귀한 연도라도 손때가 타고 마모되었다면 가격이 폭락합니다. 제조 당시의 은은한 금속 롤러 광택(Mint Luster)이 고스란히 살아있는 <b>미사용 제(Uncirculated)</b> 등급 주화여야 최고가 대접을 받습니다.
+                                            </p>
+                                        </div>
+
+                                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                                            <h4 class="font-bold text-white text-sm mb-1">3. 그레이딩 (해외 공식 등급 인증)</h4>
+                                            <p class="text-xs text-slate-400 leading-relaxed">
+                                                미국의 <b>NGC</b> 혹은 <b>PCGS</b> 같은 세계적인 권위의 화폐 감정 회사에 동전을 보내 플라스틱 케이스에 밀봉된 MS(Mint State) 등급 번호(예: MS65, MS66)를 인증받으면 신뢰도가 확보되어 거래 가격이 수배 이상 폭등합니다.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-4 bg-red-950/40 border border-red-900/50 rounded-xl">
+                                        <h4 class="font-bold text-red-400 text-sm mb-1 flex items-center gap-1.5">
+                                            <i data-lucide="alert-triangle" class="w-4 h-4"></i> 수집가들이 절대 엄금하는 주의사항
+                                        </h4>
+                                        <p class="text-xs text-slate-300 leading-relaxed">
+                                            더러운 동전을 깨끗하게 만든다고 <b>치약으로 닦거나, 락스에 담그거나, 철수세미로 광을 내는 행동은 절대로 피하셔야 합니다.</b> 화폐 수집 시장에서는 약품 세척 처리가 된 동전을 '손상 주화'로 분류하여 가치를 일반 고철 가격 수준으로 낮게 평가합니다. 먼지만 가볍게 털어내고 있는 그대로 보존하는 것이 정석입니다.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </main>
 
-                    {/* Bottom Navigation */}
-                    <nav className="bg-gray-900 border-t border-gray-800 fixed bottom-0 w-full z-50">
-                        <div className="max-w-md mx-auto flex justify-around p-2">
-                            <NavButton 
-                                active={activeTab === 'scan'} 
-                                onClick={() => setActiveTab('scan')} 
-                                icon={<CameraIcon size={20} />} 
-                                label="AI 감정" 
-                            />
-                            <NavButton 
-                                active={activeTab === 'table'} 
-                                onClick={() => setActiveTab('table')} 
-                                icon={<ListIcon size={20} />} 
-                                label="시세표" 
-                            />
-                            <NavButton 
-                                active={activeTab === 'guide'} 
-                                onClick={() => setActiveTab('guide')} 
-                                icon={<InfoIcon size={20} />} 
-                                label="주의사항" 
-                            />
-                        </div>
+                    {/* 하단 탭 바 글로벌 네비게이션 */}
+                    <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-950 border-t border-slate-800 grid grid-cols-3 h-18 z-40 text-center">
+                        <button onClick={() => setActiveTab("scan")} class={`flex flex-col items-center justify-center gap-1 text-xs font-medium transition ${activeTab === "scan" ? "text-amber-400 font-bold bg-slate-900/30" : "text-slate-500 hover:text-slate-300"}`}>
+                            <i data-lucide="scan-line" class="w-5 h-5"></i>
+                            <span>AI 가치 스캔</span>
+                        </button>
+                        <button onClick={() => setActiveTab("table")} class={`flex flex-col items-center justify-center gap-1 text-xs font-medium transition ${activeTab === "table" ? "text-amber-400 font-bold bg-slate-900/30" : "text-slate-500 hover:text-slate-300"}`}>
+                            <i data-lucide="table-properties" class="w-5 h-5"></i>
+                            <span>희귀 시세표</span>
+                        </button>
+                        <button onClick={() => setActiveTab("guide")} class={`flex flex-col items-center justify-center gap-1 text-xs font-medium transition ${activeTab === "guide" ? "text-amber-400 font-bold bg-slate-900/30" : "text-slate-500 hover:text-slate-300"}`}>
+                            <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+                            <span>보존 상식</span>
+                        </button>
                     </nav>
                 </div>
             );
         }
 
-        function NavButton({ active, onClick, icon, label }) {
-            return (
-                <button
-                    onClick={onClick}
-                    className={`flex flex-col items-center justify-center w-20 py-2 rounded-xl transition-all duration-200 ${
-                        active ? 'text-amber-400 bg-amber-400/10' : 'text-gray-500 hover:text-gray-300'
-                    }`}
-                >
-                    {icon}
-                    <span className="text-xs mt-1 font-medium">{label}</span>
-                </button>
-            );
-        }
-
-        function ScannerTab() {
-            const [image, setImage] = useState(null);
-            const [scanStatus, setScanStatus] = useState('idle'); // 'idle', 'compressing', 'scanning', 'result'
-            const [selectedCoin, setSelectedCoin] = useState('100원');
-            const [selectedYear, setSelectedYear] = useState('1998');
-            const [selectedCondition, setSelectedCondition] = useState('미사용');
-            const [errorMessage, setErrorMessage] = useState('');
-
-            // 모바일 초고화질 사진 실시간 압축 함수
-            const handleImageProcess = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                setScanStatus('compressing');
-                setErrorMessage('');
-
-                // FileReader 대신 메모리 효율이 극도로 뛰어난 Object URL 사용
-                const imageUrl = URL.createObjectURL(file);
-                const img = new Image();
-                img.src = imageUrl;
-
-                img.onload = () => {
-                    // 메모리 해제
-                    URL.revokeObjectURL(imageUrl);
-
-                    // 최대 너비/높이를 800px로 제한하여 해상도 다이어트
-                    const MAX_WIDTH = 800;
-                    const MAX_HEIGHT = 800;
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > height) {
-                        if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
-                        }
-                    } else {
-                        if (height > MAX_HEIGHT) {
-                            width *= MAX_HEIGHT / height;
-                            height = MAX_HEIGHT;
-                        }
-                    }
-
-                    // 가상 캔버스를 통해 이미지 리사이징 및 압축
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    // 용량을 100분의 1로 줄인 JPEG 데이터 (압축 품질 0.7)
-                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                    
-                    setImage(compressedDataUrl);
-                    startScanning();
-                };
-
-                img.onerror = () => {
-                    URL.revokeObjectURL(imageUrl);
-                    setErrorMessage('이미지를 읽는 중 오류가 발생했습니다. 다시 촬영해주세요.');
-                    setScanStatus('idle');
-                };
-            };
-
-            const startScanning = () => {
-                setScanStatus('scanning');
-                setTimeout(() => {
-                    setScanStatus('result');
-                }, 2500);
-            };
-
-            const resetScan = () => {
-                setImage(null);
-                setScanStatus('idle');
-                setErrorMessage('');
-            };
-
-            const findPrice = () => {
-                let match = COIN_DATABASE.find(c => c.type === selectedCoin && c.year.includes(selectedYear) && c.condition === selectedCondition);
-                if (!match) {
-                    match = COIN_DATABASE.find(c => c.type === selectedCoin && c.year.includes(selectedYear));
-                }
-                return match;
-            };
-
-            const resultData = findPrice();
-
-            return (
-                <div className="p-4">
-                    {/* 에러 메시지 출력 */}
-                    {errorMessage && (
-                        <div className="mb-4 bg-red-900/30 border border-red-900/50 rounded-xl p-3 text-sm text-red-200 text-center">
-                            {errorMessage}
-                        </div>
-                    )}
-
-                    {scanStatus === 'idle' && (
-                        <div className="mt-6">
-                            <div className="text-center mb-8">
-                                <h2 className="text-2xl font-bold text-white mb-2">희귀 동전 감정하기</h2>
-                                <p className="text-gray-400 text-sm">동전의 앞/뒷면을 선명하게 촬영해주세요.</p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                {/* 카메라 촬영 버튼 */}
-                                <label 
-                                    htmlFor="camera-input"
-                                    className="border-2 border-dashed border-gray-700 bg-gray-900/50 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500/50 hover:bg-amber-500/5 transition-all group"
-                                >
-                                    <div className="bg-gray-800 p-4 rounded-full mb-4 group-hover:bg-amber-500/20 group-hover:scale-110 transition-all">
-                                        <CameraIcon className="w-8 h-8 text-amber-400" />
-                                    </div>
-                                    <p className="text-base font-medium text-gray-300">카메라 촬영</p>
-                                    <p className="text-xs text-gray-500 mt-1">직접 사진 찍기</p>
-                                </label>
-                                <input 
-                                    id="camera-input"
-                                    type="file" 
-                                    accept="image/*" 
-                                    capture="environment" 
-                                    className="hidden" 
-                                    onChange={handleImageProcess}
-                                />
-
-                                {/* 갤러리 업로드 버튼 */}
-                                <label 
-                                    htmlFor="gallery-input"
-                                    className="border-2 border-dashed border-gray-700 bg-gray-900/50 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group"
-                                >
-                                    <div className="bg-gray-800 p-4 rounded-full mb-4 group-hover:bg-blue-500/20 group-hover:scale-110 transition-all">
-                                        <UploadIcon className="w-8 h-8 text-blue-400" />
-                                    </div>
-                                    <p className="text-base font-medium text-gray-300">사진 업로드</p>
-                                    <p className="text-xs text-gray-500 mt-1">갤러리에서 선택</p>
-                                </label>
-                                <input 
-                                    id="gallery-input"
-                                    type="file" 
-                                    accept="image/*" 
-                                    className="hidden" 
-                                    onChange={handleImageProcess}
-                                />
-                            </div>
-                            
-                            <div className="mt-8 bg-amber-900/20 border border-amber-900/50 rounded-xl p-4 flex gap-3">
-                                 <AlertTriangleIcon className="text-amber-500 shrink-0 mt-0.5 w-5 h-5" />
-                                 <div className="text-sm text-amber-200/80">
-                                     <p className="font-semibold text-amber-500 mb-1">정확한 감정을 위한 팁</p>
-                                     <p>빛 반사가 적은 밝은 곳에서 촬영하면 연도와 상태를 더 정확히 판독할 수 있습니다.</p>
-                                 </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 압축 진행 표시 */}
-                    {scanStatus === 'compressing' && (
-                        <div className="mt-12 flex flex-col items-center justify-center py-12">
-                            <RefreshCwIcon className="w-10 h-10 text-amber-500 animate-spin mb-4" />
-                            <p className="text-lg font-medium text-amber-400">이미지 용량 최적화 중...</p>
-                            <p className="text-xs text-gray-500 mt-2">고해상도 사진을 안정적인 용량으로 조절하고 있습니다.</p>
-                        </div>
-                    )}
-
-                    {/* 스캐닝 레이저 효과 화면 */}
-                    {scanStatus === 'scanning' && (
-                        <div className="mt-8 flex flex-col items-center">
-                            <div className="relative w-full max-w-sm aspect-square rounded-2xl overflow-hidden border border-gray-700">
-                                <img src={image} alt="Uploading coin" className="object-cover w-full h-full opacity-50" />
-                                <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-transparent via-amber-500/50 to-transparent w-full h-1/2 animate-scan" />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                     <div className="bg-gray-900/80 backdrop-blur-sm px-6 py-3 rounded-full flex items-center gap-3 border border-gray-700">
-                                         <RefreshCwIcon className="w-5 h-5 text-amber-500 animate-spin" />
-                                         <span className="font-medium text-sm">AI가 이미지를 분석 중입니다...</span>
-                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {scanStatus === 'result' && (
-                        <div className="mt-4 space-y-6">
-                            <div className="flex justify-between items-center">
-                                <h2 className="text-xl font-bold">감정 결과</h2>
-                                <button onClick={resetScan} className="text-sm text-gray-400 hover:text-white flex items-center gap-1">
-                                    <RefreshCwIcon size={14} /> 다시 검사
-                                </button>
-                            </div>
-
-                            <div className="flex gap-4 items-start">
-                                <div className="w-24 h-24 rounded-xl overflow-hidden border border-gray-700 shrink-0 relative">
-                                    <img src={image} alt="Scanned coin" className="object-cover w-full h-full" />
-                                    <div className="absolute top-0 right-0 bg-amber-500 text-gray-950 text-[10px] font-bold px-1.5 py-0.5 rounded-bl-lg">
-                                        <CheckCircleIcon size={10} className="inline mr-1" />판독완료
-                                    </div>
-                                </div>
-                                
-                                <div className="flex-1 space-y-3">
-                                    <p className="text-sm text-gray-400">AI가 인식한 정보를 확인하고, 필요시 수정해주세요.</p>
-                                    
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div className="space-y-1">
-                                            <label className="text-xs text-gray-500">액면가</label>
-                                            <select 
-                                                value={selectedCoin} 
-                                                onChange={(e) => setSelectedCoin(e.target.value)}
-                                                className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-sm focus:border-amber-500 focus:outline-none"
-                                            >
-                                                <option value="1원">1원</option>
-                                                <option value="5원">5원</option>
-                                                <option value="10원">10원</option>
-                                                <option value="50원">50원</option>
-                                                <option value="100원">100원</option>
-                                                <option value="500원">500원</option>
-                                            </select>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs text-gray-500">연도</label>
-                                            <input 
-                                                type="number" 
-                                                value={selectedYear} 
-                                                onChange={(e) => setSelectedYear(e.target.value)}
-                                                className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-sm focus:border-amber-500 focus:outline-none"
-                                                placeholder="예: 1998"
-                                            />
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="space-y-1">
-                                        <label className="text-xs text-gray-500">보존 상태</label>
-                                        <select 
-                                                value={selectedCondition} 
-                                                onChange={(e) => setSelectedCondition(e.target.value)}
-                                                className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-sm focus:border-amber-500 focus:outline-none"
-                                            >
-                                                <option value="사용">사용 (유통품)</option>
-                                                <option value="미사용">미사용 (보존상태 최상)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-2xl p-6 relative overflow-hidden">
-                                 <div className="absolute -right-6 -top-6 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
-                                 
-                                 {resultData ? (
-                                     <>
-                                         <div className="flex items-center gap-2 mb-2">
-                                             <span className="bg-amber-500 text-gray-950 text-xs font-bold px-2 py-1 rounded-md">
-                                                 희귀 동전 매칭
-                                             </span>
-                                             <span className="text-sm text-gray-400">{resultData.desc}</span>
-                                         </div>
-                                         <p className="text-gray-400 text-sm mt-4">예상 거래가 (기준: {resultData.condition})</p>
-                                         <p className="text-3xl font-bold text-amber-400 mt-1">{resultData.price}</p>
-                                         <p className="text-xs text-gray-500 mt-4 leading-relaxed">
-                                             * 위 가격은 수집가들 사이의 예상 시세이며, 실제 거래 가격은 NGC 등 공식 등급 인증 결과와 보존 상태에 따라 크게 변동될 수 있습니다.
-                                         </p>
-                                     </>
-                                 ) : (
-                                     <div className="text-center py-4">
-                                         <CoinsIcon className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                                         <p className="text-lg font-medium text-gray-300">일반 유통 동전입니다.</p>
-                                         <p className="text-sm text-gray-500 mt-2">
-                                             해당 연도({selectedYear}년)의 {selectedCoin}은 특별한 희소성이 없어, 일반적으로 액면가와 동일하게 거래됩니다.
-                                         </p>
-                                     </div>
-                                 )}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        }
-
-        function PriceTableTab() {
-            const [searchTerm, setSearchTerm] = useState('');
-            const filteredData = COIN_DATABASE.filter(coin => 
-                coin.type.includes(searchTerm) || 
-                coin.year.includes(searchTerm) ||
-                coin.desc.includes(searchTerm)
-            );
-
-            return (
-                <div className="p-4">
-                    <div className="mb-6">
-                        <h2 className="text-2xl font-bold text-white mb-2">희귀 동전 시세표</h2>
-                        <p className="text-gray-400 text-sm">연도와 상태에 따른 대략적인 가치를 확인하세요.</p>
-                    </div>
-                    <div className="relative mb-6">
-                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" />
-                        <input 
-                            type="text" 
-                            placeholder="액면가 또는 연도 검색 (예: 100원, 1998)"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-gray-900 border border-gray-700 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
-                        />
-                    </div>
-                    <div className="space-y-3">
-                        {filteredData.length > 0 ? (
-                            filteredData.map((coin) => (
-                                <div key={coin.id} className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 flex items-center justify-between hover:bg-gray-800 hover:border-gray-600 transition-all">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-lg font-bold text-white">{coin.type}</span>
-                                            <span className="text-sm font-medium text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">{coin.year}</span>
-                                        </div>
-                                        <div className="text-xs text-gray-400 flex items-center gap-2">
-                                            <span>{coin.desc}</span>
-                                            <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-                                            <span>{coin.condition} 기준</span>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-sm font-bold text-amber-400">{coin.price}</span>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="text-center py-10 text-gray-500">
-                                검색 결과가 없습니다.
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
-        }
-
-        function GuideTab() {
-            return (
-                <div className="p-4">
-                    <div className="mb-6">
-                        <h2 className="text-2xl font-bold text-white mb-2">가치 평가 가이드</h2>
-                        <p className="text-gray-400 text-sm">동전 거래 전 반드시 확인해야 할 사항입니다.</p>
-                    </div>
-                    <div className="space-y-4">
-                        <div className="bg-gray-800 rounded-2xl p-5 border border-gray-700">
-                            <h3 className="text-lg font-bold text-amber-400 mb-3 flex items-center gap-2">
-                                <CoinsIcon className="w-5 h-5" /> 가격을 좌우하는 핵심 요소
-                            </h3>
-                            <ul className="space-y-3 text-sm text-gray-300">
-                                <li className="flex gap-2">
-                                    <span className="text-amber-500 font-bold">•</span>
-                                    <div>
-                                        <strong className="text-white block mb-0.5">발행 연도 (희소성)</strong>
-                                        최초 발행 연도(예: 1966년 1원·5원·10원)나 IMF 등으로 발행량이 극히 적었던 해(예: 1998년 500원)의 동전이 높은 가치를 지닙니다.
-                                    </div>
-                                </li>
-                                <li className="flex gap-2">
-                                    <span className="text-amber-500 font-bold">•</span>
-                                    <div>
-                                        <strong className="text-white block mb-0.5">보존 상태 (Grade)</strong>
-                                        미사용, 사용(유통품), 마모 정도에 따라 가격이 수십 배 차이 납니다. 유통된 동전은 희귀 연도라도 가치가 크게 떨어질 수 있습니다.
-                                    </div>
-                                </li>
-                                <li className="flex gap-2">
-                                    <span className="text-amber-500 font-bold">•</span>
-                                    <div>
-                                        <strong className="text-white block mb-0.5">주의! 절대 무리한 세척 금지</strong>
-                                        동전 표면을 깨끗하게 만들기 위해 광을 내거나 약품 세척을 하면 표면이 미세하게 손상되어 동전 수집 가치가 치명적으로 하락(최대 90% 이상 가치 상실)합니다. 발견 당시 상태 그대로 보존해야 합니다.
-                                    </div>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<CoinAppraiser />);
+        root.render(<App />);
+
+        // 아이콘 초기화 렌더링 스크립트 트리거
+        setTimeout(() => {
+            if(window.lucide) window.lucide.createIcons();
+        }, 500);
     </script>
 </body>
 </html>
